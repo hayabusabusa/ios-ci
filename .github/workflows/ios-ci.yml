@@ -77,6 +77,16 @@ jobs:
             exit 1
           fi
 
+          if ! jq -e '
+            .test_targets
+            | . == null or (type == "array" and all(.[];
+                type == "string" and test("[^[:space:]]") and (test("[,[:cntrl:]]") | not)
+              ))
+          ' <<< "$project" > /dev/null; then
+            echo 'Set test_targets in IOS_CI_PROJECTS to an array of non-empty test identifiers without commas or control characters' >&2
+            exit 1
+          fi
+
           printf 'owner=%s\nrepository=%s\nproject=%s\n' \
             "${APP_REPOSITORY%/*}" "${APP_REPOSITORY#*/}" "$project" >> "$GITHUB_OUTPUT"
 
@@ -142,6 +152,7 @@ jobs:
           DESTINATION: ${{ fromJSON(needs.prepare.outputs.project).destination }}
           XCODE_VERSION: ${{ fromJSON(needs.prepare.outputs.project).xcode_version }}
           OPERATION: ${{ inputs.operation }}
+          TEST_TARGETS: ${{ join(fromJSON(needs.prepare.outputs.project).test_targets || '', ',') }}
           FASTLANE_DISABLE_OUTPUT_FORMAT: 'true'
           FASTLANE_HIDE_TIMESTAMP: 'true'
           FASTLANE_SKIP_UPDATE_CHECK: 'true'
@@ -178,6 +189,9 @@ jobs:
               fastlane run build_app "${fastlane_options[@]}" skip_archive:true skip_profile_detection:true
               ;;
             test)
+              if [[ -n "$TEST_TARGETS" ]]; then
+                export SCAN_ONLY_TESTING="$TEST_TARGETS"
+              fi
               fastlane run run_tests "${fastlane_options[@]}" skip_detect_devices:true skip_slack:true fail_build:true
               ;;
           esac

@@ -41,7 +41,8 @@ gh secret set IOS_CI_APP_PRIVATE_KEY --repo hayabusabusa/example-ios < /path/to/
        "scheme": "App",
        "destination": "platform=iOS Simulator,name=iPhone 17,OS=27.2",
        "runner": "xcode-27",
-       "xcode_version": "27.2"
+       "xcode_version": "27.2",
+       "test_targets": ["AppTests", "AppUITests"]
      }
    }
    ```
@@ -56,6 +57,12 @@ gh secret set IOS_CI_APP_PRIVATE_KEY --repo hayabusabusa/example-ios < /path/to/
 デフォルトの `operation: test` は fastlane の `run_tests` でビルドとテストを実行します。ビルドだけ確認する場合は `ios-ci` の **Run workflow** で `operation: build` を選びます。fastlane の `build_app` が Simulator 向けにビルドし、結果は `ios-ci / build` に表示されます。アプリ側の **Notify iOS CI** は起動リクエストの受付結果です。
 
 どちらのモードも `xcbeautify` で Xcode のログを整形し、警告やエラーを GitHub Actions のアノテーションとして表示します。`macos-26` と `xcode-27` には fastlane と `xcbeautify` が搭載されています。ほかのランナーを指定する場合は両方を使えるようにしてください。[fastlane のログ整形](https://docs.fastlane.tools/best-practices/xcodebuild-formatters/) · [xcbeautify の GitHub Actions 対応](https://github.com/cpisciotta/xcbeautify#github-actions)
+
+### テスト対象を指定する
+
+`ios-ci` の Actions variable `IOS_CI_PROJECTS` にある対象アプリの `test_targets` に、共有 Scheme の Test アクションに含まれるテストターゲットを JSON の配列で指定します。`["AppTests", "AppUITests"]` のように複数指定でき、`"AppTests/PlaybackTests"` のようにスイート単位でも絞り込めます。
+
+この設定は手動実行と PR からの自動実行の両方で、`operation: test` に適用されます。省略時や空配列の場合は既定のテスト設定を使います。[fastlane のテスト対象指定](https://docs.fastlane.tools/actions/run_tests/)
 
 ### Swift マクロの承認
 
