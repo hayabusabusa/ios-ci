@@ -77,6 +77,11 @@ jobs:
             exit 1
           fi
 
+          if ! jq -e '.test_scheme | . == null or (type == "string" and test("[^[:space:]]"))' <<< "$project" > /dev/null; then
+            echo 'Set test_scheme in IOS_CI_PROJECTS to a non-empty scheme name or omit it' >&2
+            exit 1
+          fi
+
           if ! jq -e '
             .test_targets
             | . == null or (type == "array" and all(.[];
@@ -149,6 +154,7 @@ jobs:
         env:
           PROJECT_PATH: ${{ fromJSON(needs.prepare.outputs.project).project_path }}
           SCHEME: ${{ fromJSON(needs.prepare.outputs.project).scheme }}
+          TEST_SCHEME: ${{ fromJSON(needs.prepare.outputs.project).test_scheme }}
           DESTINATION: ${{ fromJSON(needs.prepare.outputs.project).destination }}
           XCODE_VERSION: ${{ fromJSON(needs.prepare.outputs.project).xcode_version }}
           OPERATION: ${{ inputs.operation }}
@@ -178,21 +184,28 @@ jobs:
           command -v xcbeautify >/dev/null || { echo 'xcbeautify is required on the selected runner' >&2; exit 1; }
           fastlane_options=(
             "$project_option"
-            "scheme:$SCHEME"
             "destination:$DESTINATION"
             "xcargs:-skipMacroValidation"
             "xcodebuild_formatter:xcbeautify --renderer github-actions"
           )
 
+          build_app() {
+            fastlane run build_app "${fastlane_options[@]}" "scheme:$SCHEME" skip_archive:true skip_profile_detection:true
+          }
+
           case "$OPERATION" in
             build)
-              fastlane run build_app "${fastlane_options[@]}" skip_archive:true skip_profile_detection:true
+              build_app
               ;;
             test)
+              test_scheme="${TEST_SCHEME:-$SCHEME}"
+              if [[ "$test_scheme" != "$SCHEME" ]]; then
+                build_app
+              fi
               if [[ -n "$TEST_TARGETS" ]]; then
                 export SCAN_ONLY_TESTING="$TEST_TARGETS"
               fi
-              fastlane run run_tests "${fastlane_options[@]}" skip_detect_devices:true skip_slack:true fail_build:true
+              fastlane run run_tests "${fastlane_options[@]}" "scheme:$test_scheme" skip_detect_devices:true skip_slack:true fail_build:true
               ;;
           esac
 

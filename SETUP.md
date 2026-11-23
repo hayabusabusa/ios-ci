@@ -60,7 +60,9 @@ gh secret set IOS_CI_APP_PRIVATE_KEY --repo hayabusabusa/example-ios < /path/to/
 
 ### テスト対象を指定する
 
-`ios-ci` の Actions variable `IOS_CI_PROJECTS` にある対象アプリの `test_targets` に、共有 Scheme の Test アクションに含まれるテストターゲットを JSON の配列で指定します。`["AppTests", "AppUITests"]` のように複数指定でき、`"AppTests/PlaybackTests"` のようにスイート単位でも絞り込めます。
+`ios-ci` の Actions variable `IOS_CI_PROJECTS` で、ビルドに使う Scheme を `scheme` に指定します。テストで別の Scheme を使う場合は `test_scheme` を追加します。`operation: test` では `scheme` でアプリをビルドしてから `test_scheme` でテストします。`test_scheme` を省略するか `scheme` と同じ名前を指定した場合は、その Scheme でビルドとテストをまとめて実行します。
+
+`test_targets` には、テスト用 Scheme の Test アクションに含まれるテストターゲットを JSON の配列で指定します。`["AppTests", "AppUITests"]` のように複数指定でき、`"AppTests/PlaybackTests"` のようにスイート単位でも絞り込めます。
 
 この設定は手動実行と PR からの自動実行の両方で、`operation: test` に適用されます。省略時や空配列の場合は既定のテスト設定を使います。[fastlane のテスト対象指定](https://docs.fastlane.tools/actions/run_tests/)
 
