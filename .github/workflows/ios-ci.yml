@@ -130,6 +130,7 @@ jobs:
           xcodebuild "$project_flag" "$PROJECT_PATH" \
             -scheme "$SCHEME" \
             -destination "$DESTINATION" \
+            -skipMacroValidation \
             "$OPERATION"
 
   report:
