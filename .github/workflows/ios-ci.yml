@@ -82,6 +82,11 @@ jobs:
             exit 1
           fi
 
+          if ! jq -e '.test_package_path | . == null or (type == "string" and test("[^[:space:]]"))' <<< "$project" > /dev/null; then
+            echo 'Set test_package_path in IOS_CI_PROJECTS to a Swift Package directory or omit it' >&2
+            exit 1
+          fi
+
           if ! jq -e '
             .test_targets
             | . == null or (type == "array" and all(.[];
@@ -155,6 +160,7 @@ jobs:
           PROJECT_PATH: ${{ fromJSON(needs.prepare.outputs.project).project_path }}
           SCHEME: ${{ fromJSON(needs.prepare.outputs.project).scheme }}
           TEST_SCHEME: ${{ fromJSON(needs.prepare.outputs.project).test_scheme }}
+          TEST_PACKAGE_PATH: ${{ fromJSON(needs.prepare.outputs.project).test_package_path }}
           DESTINATION: ${{ fromJSON(needs.prepare.outputs.project).destination }}
           XCODE_VERSION: ${{ fromJSON(needs.prepare.outputs.project).xcode_version }}
           OPERATION: ${{ inputs.operation }}
@@ -183,14 +189,13 @@ jobs:
 
           command -v xcbeautify >/dev/null || { echo 'xcbeautify is required on the selected runner' >&2; exit 1; }
           fastlane_options=(
-            "$project_option"
             "destination:$DESTINATION"
             "xcargs:-skipMacroValidation"
             "xcodebuild_formatter:xcbeautify --renderer github-actions"
           )
 
           build_app() {
-            fastlane run build_app "${fastlane_options[@]}" "scheme:$SCHEME" skip_archive:true skip_profile_detection:true
+            fastlane run build_app "${fastlane_options[@]}" "$project_option" "scheme:$SCHEME" skip_archive:true skip_profile_detection:true
           }
 
           case "$OPERATION" in
@@ -199,13 +204,25 @@ jobs:
               ;;
             test)
               test_scheme="${TEST_SCHEME:-$SCHEME}"
-              if [[ "$test_scheme" != "$SCHEME" ]]; then
+              if [[ -n "$TEST_PACKAGE_PATH" && ! -f "$TEST_PACKAGE_PATH/Package.swift" ]]; then
+                echo "Package.swift was not found in test_package_path: $TEST_PACKAGE_PATH" >&2
+                exit 1
+              fi
+              if [[ "$test_scheme" != "$SCHEME" || -n "$TEST_PACKAGE_PATH" ]]; then
                 build_app
               fi
               if [[ -n "$TEST_TARGETS" ]]; then
                 export SCAN_ONLY_TESTING="$TEST_TARGETS"
               fi
-              fastlane run run_tests "${fastlane_options[@]}" "scheme:$test_scheme" skip_detect_devices:true skip_slack:true fail_build:true
+              test_options=("$project_option")
+              if [[ -n "$TEST_PACKAGE_PATH" ]]; then
+                test_options=(package_path:. result_bundle:true)
+                if [[ "$PROJECT_PATH" == *.xcworkspace ]]; then
+                  test_options+=("workspace:$PWD/$PROJECT_PATH")
+                fi
+                cd -- "$TEST_PACKAGE_PATH"
+              fi
+              fastlane run run_tests "${fastlane_options[@]}" "${test_options[@]}" "scheme:$test_scheme" skip_detect_devices:true skip_slack:true fail_build:true
               ;;
           esac
 

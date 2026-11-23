@@ -66,6 +66,18 @@ gh secret set IOS_CI_APP_PRIVATE_KEY --repo hayabusabusa/example-ios < /path/to/
 
 この設定は手動実行と PR からの自動実行の両方で、`operation: test` に適用されます。省略時や空配列の場合は既定のテスト設定を使います。[fastlane のテスト対象指定](https://docs.fastlane.tools/actions/run_tests/)
 
+Swift Package の自動生成 Scheme でテストする場合は、`test_scheme` に Scheme 名、`test_package_path` にアプリルートから見た `Package.swift` のあるディレクトリを指定します。
+
+```json
+{
+  "scheme": "App",
+  "test_scheme": "PackageTests",
+  "test_package_path": "Package"
+}
+```
+
+この設定ではアプリのビルド後に、fastlane の Swift Package モードでテストします。`project_path` に `.xcworkspace` を指定している場合は、テストにも同じ workspace を渡します。[fastlane の Swift Package 設定](https://docs.fastlane.tools/actions/run_tests/)
+
 ### Swift マクロの承認
 
 CI のビルドとテストでは、`xcodebuild` に常に `-skipMacroValidation` を渡し、その実行で使うすべての Swift マクロの承認チェックを省略します。対象アプリで使用する依存パッケージと `Package.resolved` の内容を確認してください。[Swift Forums の Xcode CLI オプション](https://forums.swift.org/t/is-there-a-way-to-programmatically-allow-trust-the-compiler-plugin-to-run-from-the-command-line/65690/2) · [Apple の CI 向け依存関係の設定](https://developer.apple.com/documentation/xcode/building-swift-packages-or-apps-that-use-them-in-continuous-integration-workflows)
