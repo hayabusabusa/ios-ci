@@ -63,8 +63,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.IOS_CI_CHECKOUT_CLIENT_ID }}
-          private-key: ${{ secrets.IOS_CI_CHECKOUT_PRIVATE_KEY }}
+          client-id: ${{ vars.IOS_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.IOS_CI_APP_PRIVATE_KEY }}
           owner: ${{ steps.target.outputs.owner }}
           repositories: ${{ steps.target.outputs.repository }}
           permission-contents: read

@@ -16,8 +16,8 @@ jobs:
         id: dispatch-token
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.IOS_CI_DISPATCH_CLIENT_ID }}
-          private-key: ${{ secrets.IOS_CI_DISPATCH_PRIVATE_KEY }}
+          client-id: ${{ vars.IOS_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.IOS_CI_APP_PRIVATE_KEY }}
           owner: hayabusabusa
           repositories: ios-ci
           permission-actions: write
