@@ -24,6 +24,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ios-ci-${{ inputs.app-repository }}-${{ inputs.commit-sha }}-${{ inputs.operation }}
+  queue: max
+
 jobs:
   prepare:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
@@ -75,6 +79,34 @@ jobs:
 
           printf 'owner=%s\nrepository=%s\nproject=%s\n' \
             "${APP_REPOSITORY%/*}" "${APP_REPOSITORY#*/}" "$project" >> "$GITHUB_OUTPUT"
+
+      - name: Create pending status token
+        id: pending-token
+        continue-on-error: true
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.IOS_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.IOS_CI_APP_PRIVATE_KEY }}
+          owner: ${{ steps.target.outputs.owner }}
+          repositories: ${{ steps.target.outputs.repository }}
+          permission-statuses: write
+
+      - name: Publish pending commit status
+        if: steps.pending-token.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.pending-token.outputs.token }}
+          APP_REPOSITORY: ${{ inputs.app-repository }}
+          COMMIT_SHA: ${{ inputs.commit-sha }}
+          OPERATION: ${{ inputs.operation }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api --method POST --silent "repos/$APP_REPOSITORY/statuses/$COMMIT_SHA" \
+            --raw-field "state=pending" \
+            --raw-field "context=ios-ci / $OPERATION" \
+            --raw-field "description=iOS $OPERATION is in progress" \
+            --raw-field "target_url=$RUN_URL"
 
   xcode:
     needs: prepare
