@@ -133,7 +133,7 @@ jobs:
           persist-credentials: false
           path: app
 
-      - name: Run xcodebuild
+      - name: Run fastlane build or test
         working-directory: app
         shell: bash
         env:
@@ -142,10 +142,14 @@ jobs:
           DESTINATION: ${{ fromJSON(needs.prepare.outputs.project).destination }}
           XCODE_VERSION: ${{ fromJSON(needs.prepare.outputs.project).xcode_version }}
           OPERATION: ${{ inputs.operation }}
+          FASTLANE_DISABLE_OUTPUT_FORMAT: 'true'
+          FASTLANE_HIDE_TIMESTAMP: 'true'
+          FASTLANE_SKIP_UPDATE_CHECK: 'true'
+          FASTLANE_OPT_OUT_USAGE: 'true'
         run: |
           case "$PROJECT_PATH" in
-            *.xcworkspace) project_flag=-workspace ;;
-            *.xcodeproj) project_flag=-project ;;
+            *.xcworkspace) project_option="workspace:$PROJECT_PATH" ;;
+            *.xcodeproj) project_option="project:$PROJECT_PATH" ;;
             *) echo 'project_path must point to an .xcworkspace or .xcodeproj' >&2; exit 1 ;;
           esac
           if [[ -n "$XCODE_VERSION" ]]; then
@@ -159,11 +163,24 @@ jobs:
           git rev-parse HEAD
           xcodebuild -version
           xcrun swift --version
-          xcodebuild "$project_flag" "$PROJECT_PATH" \
-            -scheme "$SCHEME" \
-            -destination "$DESTINATION" \
-            -skipMacroValidation \
-            "$OPERATION"
+
+          command -v xcbeautify >/dev/null || { echo 'xcbeautify is required on the selected runner' >&2; exit 1; }
+          fastlane_options=(
+            "$project_option"
+            "scheme:$SCHEME"
+            "destination:$DESTINATION"
+            "xcargs:-skipMacroValidation"
+            "xcodebuild_formatter:xcbeautify --renderer github-actions"
+          )
+
+          case "$OPERATION" in
+            build)
+              fastlane run build_app "${fastlane_options[@]}" skip_archive:true skip_profile_detection:true
+              ;;
+            test)
+              fastlane run run_tests "${fastlane_options[@]}" skip_detect_devices:true skip_slack:true fail_build:true
+              ;;
+          esac
 
   report:
     needs: [prepare, xcode]
