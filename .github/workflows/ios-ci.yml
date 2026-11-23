@@ -65,13 +65,21 @@ jobs:
             exit 1
           fi
 
+          if ! jq -e '
+            (.runner | . == null or (type == "string" and length > 0))
+            and (.xcode_version | . == null or (type == "string" and test("^[0-9]+(\\.[0-9]+){0,2}$")))
+          ' <<< "$project" > /dev/null; then
+            echo 'Set runner to a runner label and xcode_version to a quoted version such as "27.2", or omit either field' >&2
+            exit 1
+          fi
+
           printf 'owner=%s\nrepository=%s\nproject=%s\n' \
             "${APP_REPOSITORY%/*}" "${APP_REPOSITORY#*/}" "$project" >> "$GITHUB_OUTPUT"
 
   xcode:
     needs: prepare
     name: iOS build and test
-    runs-on: macos-26
+    runs-on: ${{ fromJSON(needs.prepare.outputs.project).runner || 'macos-26' }}
     timeout-minutes: 45
     steps:
       - name: Create read-only app token
@@ -100,6 +108,7 @@ jobs:
           PROJECT_PATH: ${{ fromJSON(needs.prepare.outputs.project).project_path }}
           SCHEME: ${{ fromJSON(needs.prepare.outputs.project).scheme }}
           DESTINATION: ${{ fromJSON(needs.prepare.outputs.project).destination }}
+          XCODE_VERSION: ${{ fromJSON(needs.prepare.outputs.project).xcode_version }}
           OPERATION: ${{ inputs.operation }}
         run: |
           case "$PROJECT_PATH" in
@@ -107,8 +116,17 @@ jobs:
             *.xcodeproj) project_flag=-project ;;
             *) echo 'project_path must point to an .xcworkspace or .xcodeproj' >&2; exit 1 ;;
           esac
+          if [[ -n "$XCODE_VERSION" ]]; then
+            export DEVELOPER_DIR="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+            if [[ ! -x "$DEVELOPER_DIR/usr/bin/xcodebuild" ]]; then
+              echo "Xcode $XCODE_VERSION is unavailable at $DEVELOPER_DIR" >&2
+              exit 1
+            fi
+          fi
+
           git rev-parse HEAD
           xcodebuild -version
+          xcrun swift --version
           xcodebuild "$project_flag" "$PROJECT_PATH" \
             -scheme "$SCHEME" \
             -destination "$DESTINATION" \
