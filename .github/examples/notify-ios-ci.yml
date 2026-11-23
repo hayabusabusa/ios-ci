@@ -1,0 +1,35 @@
+name: Notify iOS CI
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  dispatch:
+    if: github.event.pull_request.head.repo.id == github.event.pull_request.base.repo.id
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create CI dispatch token
+        id: dispatch-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.IOS_CI_DISPATCH_CLIENT_ID }}
+          private-key: ${{ secrets.IOS_CI_DISPATCH_PRIVATE_KEY }}
+          owner: hayabusabusa
+          repositories: ios-ci
+          permission-actions: write
+
+      - name: Dispatch to ios-ci
+        env:
+          GH_TOKEN: ${{ steps.dispatch-token.outputs.token }}
+          APP_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh workflow run ios-ci.yml --repo hayabusabusa/ios-ci --ref main \
+            --raw-field "app-repository=$APP_REPOSITORY" \
+            --raw-field "pr-number=$PR_NUMBER" \
+            --raw-field "commit-sha=$COMMIT_SHA"

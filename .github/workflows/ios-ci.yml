@@ -1,0 +1,105 @@
+name: iOS CI
+run-name: "${{ inputs.app-repository }} PR #${{ inputs.pr-number }} @ ${{ inputs.commit-sha }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app-repository:
+        description: App repository (owner/repo)
+        required: true
+        type: string
+      pr-number:
+        description: App pull request number
+        required: true
+        type: string
+      commit-sha:
+        description: Full SHA of the app pull request head
+        required: true
+        type: string
+      operation:
+        description: Xcode operation
+        default: test
+        type: choice
+        options: [test, build]
+
+permissions: {}
+
+jobs:
+  xcode:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    name: iOS build and test
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Validate app and commit
+        id: target
+        shell: bash
+        env:
+          APP_REPOSITORY: ${{ inputs.app-repository }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+          COMMIT_SHA: ${{ inputs.commit-sha }}
+          PROJECTS: ${{ vars.IOS_CI_PROJECTS || '{}' }}
+        run: |
+          if [[ ! "$APP_REPOSITORY" =~ ^[a-zA-Z0-9-]+/[a-zA-Z0-9_.-]+$ ||
+                ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ ||
+                ! "$COMMIT_SHA" =~ ^[a-fA-F0-9]{40}$ ]]; then
+            echo 'Expected owner/repo, a PR number, and a full commit SHA' >&2
+            exit 1
+          fi
+
+          if ! project=$(jq -ce --arg repo "$APP_REPOSITORY" '
+            .[$repo]
+            | select(type == "object")
+            | select([.project_path, .scheme, .destination] | all(type == "string" and length > 0))
+          ' <<< "$PROJECTS"); then
+            echo 'Set project_path, scheme, and destination for this repository in IOS_CI_PROJECTS' >&2
+            exit 1
+          fi
+
+          printf 'owner=%s\nrepository=%s\nproject=%s\n' \
+            "${APP_REPOSITORY%/*}" "${APP_REPOSITORY#*/}" "$project" >> "$GITHUB_OUTPUT"
+
+      - name: Create read-only app token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.IOS_CI_CHECKOUT_CLIENT_ID }}
+          private-key: ${{ secrets.IOS_CI_CHECKOUT_PRIVATE_KEY }}
+          owner: ${{ steps.target.outputs.owner }}
+          repositories: ${{ steps.target.outputs.repository }}
+          permission-contents: read
+
+      - name: Check out app repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.app-repository }}
+          ref: ${{ inputs.commit-sha }}
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+          path: app
+
+      - name: Run xcodebuild
+        working-directory: app
+        shell: bash
+        env:
+          PROJECT_PATH: ${{ fromJSON(steps.target.outputs.project).project_path }}
+          SCHEME: ${{ fromJSON(steps.target.outputs.project).scheme }}
+          DESTINATION: ${{ fromJSON(steps.target.outputs.project).destination }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          case "$PROJECT_PATH" in
+            *.xcworkspace) project_flag=-workspace ;;
+            *.xcodeproj) project_flag=-project ;;
+            *) echo 'project_path must point to an .xcworkspace or .xcodeproj' >&2; exit 1 ;;
+          esac
+          case "$OPERATION" in
+            build|test) ;;
+            *) echo 'operation must be build or test' >&2; exit 1 ;;
+          esac
+
+          git rev-parse HEAD
+          xcodebuild -version
+          xcodebuild "$project_flag" "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -destination "$DESTINATION" \
+            "$OPERATION"
