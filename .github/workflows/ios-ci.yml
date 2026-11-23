@@ -1,5 +1,5 @@
 name: iOS CI
-run-name: "${{ inputs.app-repository }} PR #${{ inputs.pr-number }} @ ${{ inputs.commit-sha }}"
+run-name: iOS CI
 
 on:
   workflow_dispatch:
