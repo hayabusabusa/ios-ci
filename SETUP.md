@@ -66,17 +66,20 @@ gh secret set IOS_CI_APP_PRIVATE_KEY --repo hayabusabusa/example-ios < /path/to/
 
 この設定は手動実行と PR からの自動実行の両方で、`operation: test` に適用されます。省略時や空配列の場合は既定のテスト設定を使います。[fastlane のテスト対象指定](https://docs.fastlane.tools/actions/run_tests/)
 
-Swift Package の自動生成 Scheme でテストする場合は、`test_scheme` に Scheme 名、`test_package_path` にアプリルートから見た `Package.swift` のあるディレクトリを指定します。
+Swift Package の自動生成 Scheme でテストする場合は、`test_package_path` にアプリルートから見た `Package.swift` のあるディレクトリを指定します。`project_path` が `.xcworkspace` の場合は、`xcodebuild -list -workspace <workspace>` の一覧から `test_scheme` を選びます。パッケージ単体の場合は、`Package.swift` のあるディレクトリで `xcodebuild -list` を実行します。
 
 ```json
 {
   "scheme": "App",
   "test_scheme": "PackageTests",
-  "test_package_path": "Package"
+  "test_package_path": "Package",
+  "destination": "platform=iOS Simulator,name=iPhone 17,OS=27.2"
 }
 ```
 
-この設定ではアプリのビルド後に、fastlane の Swift Package モードでテストします。`project_path` に `.xcworkspace` を指定している場合は、テストにも同じ workspace を渡します。[fastlane の Swift Package 設定](https://docs.fastlane.tools/actions/run_tests/)
+アプリのビルドには `project_path` と `scheme` を使います。ビルド成功後は `test_package_path` に移動して、fastlane の Swift Package モードで `test_scheme` の Test アクションを実行します。`project_path` が `.xcworkspace` の場合は、テストにも同じ workspace を渡します。
+
+ビルドとテストは同じ `destination` を使います。Swift Package のテストでは、上の例の形式で指定した端末名と OS を fastlane が Simulator の ID に解決し、その ID を Xcode に渡します。ID を直接指定する形式などは、`destination` として Xcode に渡します。[fastlane のデバイス指定](https://docs.fastlane.tools/actions/run_tests/)
 
 ### Swift マクロの承認
 

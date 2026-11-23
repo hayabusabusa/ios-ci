@@ -189,13 +189,12 @@ jobs:
 
           command -v xcbeautify >/dev/null || { echo 'xcbeautify is required on the selected runner' >&2; exit 1; }
           fastlane_options=(
-            "destination:$DESTINATION"
             "xcargs:-skipMacroValidation"
             "xcodebuild_formatter:xcbeautify --renderer github-actions"
           )
 
           build_app() {
-            fastlane run build_app "${fastlane_options[@]}" "$project_option" "scheme:$SCHEME" skip_archive:true skip_profile_detection:true
+            fastlane run build_app "${fastlane_options[@]}" "$project_option" "scheme:$SCHEME" "destination:$DESTINATION" skip_archive:true skip_profile_detection:true
           }
 
           case "$OPERATION" in
@@ -215,14 +214,25 @@ jobs:
                 export SCAN_ONLY_TESTING="$TEST_TARGETS"
               fi
               test_options=("$project_option")
+              simulator_options=("destination:$DESTINATION" skip_detect_devices:true)
               if [[ -n "$TEST_PACKAGE_PATH" ]]; then
-                test_options=(package_path:. result_bundle:true)
+                test_options=(package_path:. result_bundle:true skip_build:true)
                 if [[ "$PROJECT_PATH" == *.xcworkspace ]]; then
                   test_options+=("workspace:$PWD/$PROJECT_PATH")
                 fi
+                named_simulator='^platform=iOS Simulator,name=([^,]+)(,OS=([0-9]+(\.[0-9]+)*|latest))?$'
+                if [[ "$DESTINATION" =~ $named_simulator ]]; then
+                  simulator="${BASH_REMATCH[1]}"
+                  os_version="${BASH_REMATCH[3]}"
+                  if [[ -n "$os_version" && "$os_version" != latest ]]; then
+                    simulator="$simulator ($os_version)"
+                  fi
+                  simulator_options=("device:$simulator" ensure_devices_found:true)
+                fi
                 cd -- "$TEST_PACKAGE_PATH"
               fi
-              fastlane run run_tests "${fastlane_options[@]}" "${test_options[@]}" "scheme:$test_scheme" skip_detect_devices:true skip_slack:true fail_build:true
+              fastlane run run_tests "${fastlane_options[@]}" "${test_options[@]}" "${simulator_options[@]}" \
+                "scheme:$test_scheme" skip_slack:true fail_build:true
               ;;
           esac
 
