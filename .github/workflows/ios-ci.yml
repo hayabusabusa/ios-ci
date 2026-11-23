@@ -233,7 +233,7 @@ jobs:
                 cd -- "$TEST_PACKAGE_PATH"
               fi
               fastlane run run_tests "${fastlane_options[@]}" "${test_options[@]}" "${simulator_options[@]}" \
-                "scheme:$test_scheme" disable_slide_to_type:false skip_slack:true fail_build:true
+                "scheme:$test_scheme" parallel_testing:false disable_slide_to_type:false skip_slack:true fail_build:true
               ;;
           esac
 

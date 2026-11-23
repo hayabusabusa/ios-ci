@@ -56,6 +56,8 @@ gh secret set IOS_CI_APP_PRIVATE_KEY --repo hayabusabusa/example-ios < /path/to/
 
 デフォルトの `operation: test` は fastlane の `run_tests` でビルドとテストを実行します。ビルドだけ確認する場合は `ios-ci` の **Run workflow** で `operation: build` を選びます。fastlane の `build_app` が Simulator 向けにビルドし、結果は `ios-ci / build` に表示されます。アプリ側の **Notify iOS CI** は起動リクエストの受付結果です。
 
+CI のテストは、Xcode に `-parallel-testing-enabled NO` を渡して直列実行します。[fastlane の並列実行設定](https://docs.fastlane.tools/actions/run_tests/)
+
 どちらのモードも `xcbeautify` で Xcode のログを整形し、警告やエラーを GitHub Actions のアノテーションとして表示します。`macos-26` と `xcode-27` には fastlane と `xcbeautify` が搭載されています。ほかのランナーを指定する場合は両方を使えるようにしてください。[fastlane のログ整形](https://docs.fastlane.tools/best-practices/xcodebuild-formatters/) · [xcbeautify の GitHub Actions 対応](https://github.com/cpisciotta/xcbeautify#github-actions)
 
 checkout では、テスト用の音声ファイルなど Git LFS で管理するファイルも取得します。独自のランナーを指定する場合は `git-lfs` をインストールしてください。[actions/checkout の LFS 設定](https://github.com/actions/checkout#usage)
