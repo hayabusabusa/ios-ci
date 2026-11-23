@@ -150,6 +150,7 @@ jobs:
           repository: ${{ inputs.app-repository }}
           ref: ${{ inputs.commit-sha }}
           token: ${{ steps.app-token.outputs.token }}
+          lfs: true
           persist-credentials: false
           path: app
 
@@ -232,7 +233,7 @@ jobs:
                 cd -- "$TEST_PACKAGE_PATH"
               fi
               fastlane run run_tests "${fastlane_options[@]}" "${test_options[@]}" "${simulator_options[@]}" \
-                "scheme:$test_scheme" skip_slack:true fail_build:true
+                "scheme:$test_scheme" disable_slide_to_type:false skip_slack:true fail_build:true
               ;;
           esac
 

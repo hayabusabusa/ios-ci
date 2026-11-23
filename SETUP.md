@@ -58,6 +58,8 @@ gh secret set IOS_CI_APP_PRIVATE_KEY --repo hayabusabusa/example-ios < /path/to/
 
 どちらのモードも `xcbeautify` で Xcode のログを整形し、警告やエラーを GitHub Actions のアノテーションとして表示します。`macos-26` と `xcode-27` には fastlane と `xcbeautify` が搭載されています。ほかのランナーを指定する場合は両方を使えるようにしてください。[fastlane のログ整形](https://docs.fastlane.tools/best-practices/xcodebuild-formatters/) · [xcbeautify の GitHub Actions 対応](https://github.com/cpisciotta/xcbeautify#github-actions)
 
+checkout では、テスト用の音声ファイルなど Git LFS で管理するファイルも取得します。独自のランナーを指定する場合は `git-lfs` をインストールしてください。[actions/checkout の LFS 設定](https://github.com/actions/checkout#usage)
+
 ### テスト対象を指定する
 
 `ios-ci` の Actions variable `IOS_CI_PROJECTS` で、ビルドに使う Scheme を `scheme` に指定します。テストで別の Scheme を使う場合は `test_scheme` を追加します。`operation: test` では `scheme` でアプリをビルドしてから `test_scheme` でテストします。`test_scheme` を省略するか `scheme` と同じ名前を指定した場合は、その Scheme でビルドとテストをまとめて実行します。
